@@ -1,0 +1,422 @@
+---
+title: ""
+output: html_document
+---
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE, error=FALSE}
+library(dplyr)
+library(questionr)
+library(htmlTable)
+library(magrittr)
+library(utils)
+library(tidyverse)
+library(kableExtra)
+library(wrapr)
+library(plyr)
+
+options(knitr.kable.NA = '')
+
+```
+
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE, error=FALSE}
+source("LastVersion_core.R", local = knitr::knit_global())
+source("LastVersion_permonth.R", local = knitr::knit_global())
+
+```
+
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE, error=FALSE}
+# library(dplyr)
+# library(questionr)
+# library(htmlTable)
+# library(magrittr)
+# library(utils)
+# library(tidyverse)
+# library(kableExtra)
+# library(wrapr)
+# library(plyr)
+# setwd("")
+#write here the file location of the file created by "create_aggregate_profil_ready_to_use
+all<-read.csv2("./Core_indicators.csv", na.strings="NA")
+names(all)[names(all) == "COUNTRY"] <- "country"
+
+df <- all
+df<-df[df$year!=2013,]
+
+indicator_names <- c()
+n_per_year22<-df %>% filter(GA >= 22, indicator=="C1a", TOP!=1) %>% group_by(year) %>% tally(N)
+total_per_year22 <- df  %>% filter(GA >= 22, (indicator=="C5" | (indicator=="C1a"& TOP!=1))) %>% group_by(year) %>% tally(N)
+n_per_year22$indicator <- "aa_22weeks"
+total_per_year22$indicator <- "aa_22weeks"
+
+n_per_year24<-df %>% filter(GA >= 24, indicator=="C1a", TOP!=1) %>% group_by(year) %>% tally(N)
+total_per_year24 <- df  %>% filter(GA >= 24, (indicator=="C5" | (indicator=="C1a"& TOP!=1))) %>% group_by(year) %>% tally(N)
+n_per_year24$indicator <- "ab_24weeks"
+total_per_year24$indicator <- "ab_24weeks"
+
+n_per_year28<-df %>% filter(GA >= 28, indicator=="C1a", TOP!=1) %>% group_by(year) %>% tally(N)
+total_per_year28 <- df  %>% filter(GA >= 28, (indicator=="C5" |(indicator=="C1a"& TOP!=1))) %>% group_by(year) %>% tally(N)
+n_per_year28$indicator <- "ac_28weeks"
+total_per_year28$indicator <- "ac_28weeks"
+
+
+# add
+total_per_year <- rbind(total_per_year22,total_per_year24,total_per_year28)
+m <- rbind(n_per_year22,n_per_year24,n_per_year28)
+s <- merge(m,total_per_year,by = c("year", "indicator"), all.x=TRUE) %>% mutate(rate = round(((n.x/n.y)*1000), 1))%>% select(year,indicator,n.x,rate)
+s <- pivot_wider(s, id_cols = indicator, names_from = year, values_from = c("n.x", "rate"))
+s <- select(s, colnames(s)) 
+s <- s[orderv(s[,1]),]
+mx <- data.matrix(s)[,-1] # remove indicator column
+
+
+#C2: neonatal deaths 
+nnm_per_year22<-df %>% filter( GA>=22, NNM!=0, NNM !=99, indicator=="C2a") %>% group_by(year) %>% tally(N)
+nnm_per_year22$indicator <- "ba_22weeks"
+total_live_per_year22<-df  %>% filter(indicator=="C5", GA>=22, GA!=99) %>% group_by(year) %>% tally(N)
+total_live_per_year22$indicator<-"ba_22weeks"
+
+
+nnm_per_year24<-df %>% filter(GA>=24, NNM!=0, NNM !=99, indicator=="C2a") %>% group_by(year) %>% tally(N)
+total_per_year24 <- df  %>% filter(GA>=24,indicator=="C5") %>% group_by(year) %>% tally(N)
+nnm_per_year24$indicator <- "bb_24weeks"
+total_live_per_year24<-df  %>% filter(indicator=="C5", GA>=24, GA!=99) %>% group_by(year) %>% tally(N)
+total_live_per_year24$indicator<-"bb_24weeks"
+
+total_live_per_year <- rbind(total_live_per_year22,total_live_per_year24)
+m <- rbind(nnm_per_year22,nnm_per_year24)
+s <- merge(m,total_live_per_year,by = c("year", "indicator"), all.y=TRUE) %>% mutate(rate = round(n.x*1000/n.y,1)) %>% select(year,indicator,n.x,rate)
+s <- pivot_wider(s, id_cols = indicator, names_from = year, values_from = c("n.x", "rate"))
+s <- select(s, colnames(s)) 
+s <- s[orderv(s[,1]),]
+mx <- rbind(mx, data.matrix(s)[,-1])
+
+#C3: infant deaths
+im_per_year22<-df %>% filter(GA>=22, indicator== "C3a" ) %>% group_by(year) %>% tally(N)
+im_per_year22$indicator <- "ca_22weeks"
+
+im_per_year24<-df %>% filter(GA>=24, indicator== "C3a") %>% group_by(year) %>% tally(N)
+total_per_year24 <- df  %>% filter(GA >= 24,indicator=="C5") %>% group_by(year) %>% tally(N)
+im_per_year24$indicator <- "cb_24weeks"
+
+total_live_per_year22$indicator<-"ca_22weeks"
+total_live_per_year24$indicator<-"cb_24weeks"
+total_live_per_year <- rbind(total_live_per_year22,total_live_per_year24)
+
+m <- rbind(im_per_year22,im_per_year24)
+s <- merge(m,total_live_per_year,by = c("year", "indicator") , all.y=TRUE) %>% mutate(rate = round(n.x*1000/n.y,1)) %>% select(year,indicator,n.x,rate)
+s <- pivot_wider(s, id_cols = indicator, names_from = year, values_from = c("n.x", "rate"))
+s <- select(s, colnames(s)) 
+s <- s[orderv(s[,1]),]
+mx <- rbind(mx, data.matrix(s)[,-1])
+
+
+#C4.1: percentage of low birth weight babies
+lbw_per_year<-df %>% filter(indicator=="C4", classBW!=5, classBW!=6, classBW!=99) %>% group_by(year) %>% tally(N)
+lbw_per_year$indicator <- "lbw"
+total_live_per_year <- df  %>% filter(indicator=="C4") %>% group_by(year) %>% tally(N)
+s <- merge(lbw_per_year,total_live_per_year,by = "year") %>% mutate(rate = round(n.x*100/n.y,1)) %>% select(year,indicator,n.x,rate)
+s <- pivot_wider(s, id_cols = indicator, names_from = year, values_from = c("n.x", "rate"))
+s <- select(s, colnames(s))  
+s <- s[orderv(s[,1]),]
+mx <- rbind(mx, data.matrix(s)[,-1])
+
+#C5: preterm live birth
+ptb_per_year<-df %>% filter(GA <37, indicator=="C4") %>% group_by(year) %>% tally(N)
+ptb_per_year$indicator<- "ea_ptb"
+total_live_per_year <- df %>% filter(indicator=="C4", GA!=99) %>% group_by(year) %>% tally(N)
+s <- merge(ptb_per_year,total_live_per_year,by = "year") %>% mutate(rate = round(n.x*100/n.y,1)) %>% select(year,indicator,n.x,rate)
+s <- pivot_wider(s, id_cols = indicator, names_from = year, values_from = c("n.x", "rate"))
+s <- select(s, colnames(s))  
+s <- s[orderv(s[,1]),]
+mx <- rbind(mx, data.matrix(s)[,-1])
+
+# C7 Multiple birth rate"
+twins<-df %>% filter((MULT_B==2), indicator=="C7") %>% group_by(year) %>% tally(round(N/2))
+triplets<-df %>% filter((MULT_B==3), indicator=="C7") %>% group_by(year) %>% tally(round(N/3))
+mult_per_year<-merge(twins,triplets, by="year", all.x=TRUE) %>% replace_na(list(n.y=0))%>% select (year, n.x, n.y) %>% mutate(n=n.x+n.y) %>% select(year,n)
+mult_per_year$indicator<- "fa_multiplebirth"
+sing_per_year<-df %>% filter((MULT_B==1), indicator=="C7") %>% group_by(year) %>% tally(N)
+total_per_year <- merge(sing_per_year,mult_per_year, by="year") %>% mutate (tot=n.x+n.y)%>% select(year,tot)
+colnames(total_per_year)<-c("year","n")
+s <- merge(mult_per_year,total_per_year,by = "year") %>% mutate(rate = round(n.x*100/n.y,1)) %>% select(year,indicator,n.x,rate)
+s <- pivot_wider(s, id_cols = indicator, names_from = year, values_from = c("n.x", "rate"))
+s <- select(s, colnames(s)) 
+s <- s[orderv(s[,1]),]
+mx <- rbind(mx, data.matrix(s)[,-1])
+
+# C8 Distribution of maternal age"
+mum_sing<-df %>% filter(indicator=="C8", MULT_B==1) %>% group_by(year, classage) %>% tally(N)
+mum_twins<-df %>% filter(indicator=="C8", MULT_B==2) %>% group_by(year, classage) %>% tally(round(N/2))
+mum_trip<-df %>% filter(indicator=="C8", MULT_B==3) %>% group_by(year, classage) %>% tally(round(N/3))
+tot_mum<-rbind(mum_sing, mum_twins, mum_trip)
+mum_age<- tot_mum %>% group_by (year, classage) %>% tally(n)
+
+maty_per_year<-mum_age %>% filter(classage==1) %>% group_by(year) %>% tally(n)
+maty_per_year$indicator<- "ga_below20years"
+
+mato_per_year<-mum_age %>% filter(classage!=1,classage!=2, classage!=3,  classage!=4, classage!=99) %>% group_by(year) %>% tally(n)
+mato_per_year$indicator<- "gb_above35years"
+
+m <- rbind(maty_per_year,mato_per_year)
+total_per_year <- tot_mum %>% filter (classage!=99)%>% group_by(year) %>% tally(n)
+s <- merge(m,total_per_year,by = "year") %>% mutate(rate = round(n.x*100/n.y,1)) %>% select(year,indicator,n.x,rate)
+s <- pivot_wider(s, id_cols = indicator, names_from = year, values_from = c("n.x", "rate"))
+s <- select(s, colnames(s)) 
+s <- s[orderv(s[,1]),]
+mx <- rbind(mx, data.matrix(s)[,-1])
+
+
+#  C9 Percentage of primiparous mothers
+par_mum_sing<-df %>% filter(indicator=="C9", MULT_B==1) %>% group_by(year, PARITY_B) %>% tally(N)
+par_mum_twins<-df %>% filter(indicator=="C9", MULT_B==2) %>% group_by(year, PARITY_B) %>% tally(round(N/2))
+par_mum_trip<-df %>% filter(indicator=="C9", MULT_B==3) %>% group_by(year, PARITY_B) %>% tally(round(N/3))
+tot_mum_parity<-rbind(par_mum_sing, par_mum_twins, par_mum_trip)
+mum_par<- tot_mum_parity %>% group_by (year, PARITY_B) %>% tally(n)
+
+prim_per_year<- mum_par %>% filter(PARITY_B==0) %>% group_by(year) %>% tally(n)
+prim_per_year$indicator <- "ha_primiparity"
+total_per_year <- mum_par %>% filter (PARITY_B!=99)%>% group_by(year) %>% tally(n)
+
+s <- merge(prim_per_year,total_per_year,by = "year") %>% mutate(rate = round(n.x*100/n.y,1)) %>% select(year,indicator,n.x,rate)
+s <- pivot_wider(s, id_cols = indicator, names_from = year, values_from = c("n.x", "rate"))
+s <- select(s, colnames(s)) 
+s <- s[orderv(s[,1]),]
+mx <- rbind(mx, data.matrix(s)[,-1])
+
+# C10 Distribution of mode of delivery
+cs_per_year<-df %>% filter(MOD==2, indicator=="C10") %>% group_by(year) %>% tally(N)
+cs_per_year$indicator<- "ia-Caesarean delivery"
+total_per_yearmod1<- df  %>% filter(MOD!=99, indicator=="C10") %>% group_by(year) %>% tally(N)
+ #for poland:data.frame( year=c(2017,2018,2019,2020) , n=rep(100,4))
+total_per_yearmod1$indicator<-"ia-Caesarean delivery"
+
+inst_per_year<-df %>% filter(INSTRUMENT==2, indicator=="C10") %>% group_by(year) %>% tally(N)
+inst_per_year$indicator <- "ib-instrumental delivery"
+total_per_yearmod2<- df %>%  filter(MOD!=99, INSTRUMENT!=99, indicator=="C10") %>% group_by(year) %>% tally(N)
+  #for poland: data.frame( year=c(2017,2018,2019,2020) , n=rep(100,4))
+total_per_yearmod2$indicator<-"ib-instrumental delivery"
+
+total_per_yearmod <- rbind(total_per_yearmod1,total_per_yearmod2)
+
+m <- rbind(cs_per_year,inst_per_year)
+s <- merge(m,total_per_yearmod,by = c("year","indicator"), all.y=TRUE) %>% mutate(rate = round(n.x*100/n.y,1)) %>% select(year,indicator,n.x,rate)
+s <- pivot_wider(s, id_cols = indicator, names_from = year, values_from = c("n.x", "rate"))
+s <- select(s, colnames(s))  
+s <- s[orderv(s[,1]),]
+mx <- rbind(mx, data.matrix(s)[,-1])
+
+# C0: live births
+livebirths_22<- df %>% filter(GA >= 22, GA !=99, indicator=="C5" ) %>% group_by(year) %>% tally(N)
+livebirths_22$indicator <- "ja_22weeks"
+livebirths_24<- df %>% filter(GA >= 24, GA !=99, indicator=="C5"  ) %>% group_by(year) %>% tally(N)
+livebirths_24$indicator <- "jb_24weeks"
+livebirths_28<- df %>% filter(GA >= 28, GA !=99, indicator=="C5"  ) %>% group_by(year) %>% tally(N)
+livebirths_28$indicator <- "jc_28weeks"
+m <- rbind(livebirths_22, livebirths_24, livebirths_28)
+year <- m %>% pull(year)
+year <- unique(year)
+rate <- rep(0, length(year))
+empty<-data.frame(year=c(year), rate=c(rate))
+m <- rbind(livebirths_22, livebirths_24, livebirths_28)
+s <- merge(m,empty,by = "year")  %>%  dplyr::rename(n.x = n)  %>%   select(year,indicator,n.x,rate)
+s <- pivot_wider(s, id_cols = indicator, names_from = year, values_from = c("n.x", "rate"))
+s <- select(s, colnames(s))  
+s <- s[orderv(s[,1]),]
+mx <- rbind(mx, data.matrix(s)[,-1])
+
+mx <- as.data.frame(mx)
+#replace 0,0 with an empty string
+mx[mx == 0.0] <- NA
+names_to_order <- map(year, ~ colnames(mx)[grep(paste0("_", .x), colnames(mx))]) %>% unlist
+mx <- mx %>% 
+  select(names_to_order)
+
+# joint indicator and time row names to create a matrix file
+file_matrix <- mx
+indicator_names <- c(
+  "C1_22weeks","C1_24weeks","C1_28weeks",
+  "C2_22weeks","C2_24weeks",
+  "C3_22weeks","C3_24weeks",
+  "C4",
+  "C5",
+  "C7",
+  "C8_% of women <20 years","C8_% of women 35 years and older",
+  "C9",
+  "C10_% Caesarean delivery","C10_% Instrumental delivery",
+  "C0_22weeks","C0_24weeks","C0_28weeks"
+)
+rownames(file_matrix) <- paste(indicator_names)
+indicator_columns <- matrix(indicator_names)
+colnames(indicator_columns) <- "indicators"
+file_matrix<-cbind(indicator_columns,file_matrix)
+rownames(file_matrix)<-NULL
+# setwd(dir = "C:/Users/Marianne Philibert/Documents/Marianne/pretest/lithuania/new version")
+write.table(file_matrix, file = "indicators.csv", sep = "|", row.names = FALSE)
+mx <- data.matrix(mx)
+
+# subrow indicator name
+rownames(mx) <- paste(c(
+  "22weeks","24weeks","28weeks",
+  "22weeks","24weeks",
+  "22weeks","24weeks",
+  "",
+  "",
+  "",
+  "% of women <20 years","% of women 35 years and older",
+  "",
+  "% Caesarean delivery","% Instrumental delivery",
+  "22weeks","24weeks","28weeks"
+))
+
+
+n_rate_names <- c("N", "rate")
+n_rate_names <- rep(n_rate_names, length(year))
+colnames(mx) <- paste(c(n_rate_names))
+doubles <- rep(2, length(year))
+doubles <- c(1, doubles)
+year <- c(" ", year)
+header <- setNames(doubles, year)
+
+year <- year[!year %in% " "]
+min_year <- min(year)
+max_year <- max(year)
+caption <- str_glue('Summary of perinatal health indicators {min_year}-{max_year}')
+
+kable(mx, caption = caption) %>%
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>%
+  add_header_above(header, 
+                   line_sep = 10) %>%
+  pack_rows(
+    index = c(
+      "C1 Fetal mortality rate (rate per 1000 births)" = 3,
+      "C2 Neonatal mortality rate (rate per 1000 births)" = 2,
+      "C3 Infant mortality rate (rate per 1000 births)" = 2,
+      "C4 Percentage of low birthweight(<2500g) live births" = 1,
+      "C5 Percentage of preterm live births (<37 weeks GA)" = 1,
+      "C7 Multiple birth rate" = 1,
+      "C8 Distribution of maternal age" = 2,
+      "C9 Percentage of primiparous mothers" = 1,
+      "C10 Distribution of mode of delivery" = 2,
+      "C0 Live births" = 3
+    )
+  )
+
+library(ggplot2)
+library(zoo)
+permonth<-read.csv2("indicators_per_month2.csv")
+permonth<-permonth[permonth$year>=2015,]
+permonth$sb_28[permonth$sb_28=="<5"]<-2
+permonth$sb_28<-as.numeric(permonth$sb_28)
+permonth<-mutate(permonth, rate_prema_singl=prema_singletons/(nlive_22-mult)*100)
+permonth$time<-as.yearmon(paste(permonth$year, " ", permonth$month), format = "%Y %m")
+ggplot(permonth, aes(time, rate_prema_singl)) + 
+          geom_point()+ geom_line(color='darkblue')+
+          xlab("month") +
+          ylab("preterm singleton rate  (%)")+ 
+          ggtitle("Preterm Singleton live birth rate per month")+
+  theme_bw()
+
+singleton<-permonth %>% select(year,n_sga_prema, n_sga_term, n_live_singleton_all)  %>% group_by(year) %>% tally(n_live_singleton_all)
+
+permonth<-mutate(permonth, rate_sb=(sb_24/(nlive_24+sb_24))*1000)
+ggplot(permonth, aes(time, rate_sb)) + 
+          geom_point()+ geom_line(colour='red')+
+          xlab("month") +
+          ylab("stillbirth rate 24SA (per 1000 births)")+ 
+          ggtitle("Stillbirth rate per month ")+
+  theme_bw()
+
+permonth<-mutate(permonth, rate_lbw=lbw/(nlive_22)*100)
+ggplot(permonth, aes(time, rate_lbw)) + 
+          geom_point()+ geom_line(colour='green')+
+          xlab("month") +
+          ylab("low birth weight rate (%)")+ 
+          ggtitle("Low birthweight (<2500g) rate per month ")+
+  theme_bw()
+
+
+sga_lga<-read.csv2("sga_lga_per_year.csv")
+y<-merge(sga_lga,singleton)
+y<-mutate(y,rate_sga=round(n_sga_all/n*100,1))
+y<-mutate(y,rate_lga=round(n_lga_all/n*100,1))
+growth<- y %>% select(year, rate_sga, rate_lga)
+kable(growth, caption="Percentage of Small for Gestational Age-Large for Gestational Age babies per year") %>%
+  kable_styling(font_size = 14)
+
+robson<-read.csv2("robson.csv")
+mult_mum<-robson[robson$robson=="9",]
+mult_mum$N2<-round(mult_mum$N/2,0)
+robson$N[robson$robson=="9"]<-mult_mum$N2
+rob_allbirths<-robson[robson$category=="allbirths",]
+colnames(rob_allbirths)<-c("ind", "COUNTRY", "year", "robson", "N2", "category")
+rob_cs<-robson[robson$category=="caesarean birth",]
+rob_cs<-rob_cs %>% select(year, robson, N)
+p<-merge(rob_allbirths,rob_cs, by=c("year", "robson"))
+p<-mutate(p, rate=round(N/N2*100,1))
+
+
+int_rob<-read.csv2("Robson_intitule.csv")
+fin<-merge(p,int_rob, by="robson") 
+synt<-fin %>% select(Classification,year,rate)
+r<-pivot_wider(synt, id_cols = Classification, names_from = year, names_sort=TRUE, values_from = c("rate"))
+kable(r, caption="Robson group specific CS rate") %>%
+  kable_styling(font_size = 14)
+
+tot <- rob_allbirths %>% group_by(year) %>% tally (N2)
+p1<-merge(rob_allbirths, tot, by="year")
+p1<-mutate(p1, prev=round((N2/n)*100,1))
+fin2<-merge(p1,int_rob, by="robson") 
+prev_rob<- fin2 %>% select(Classification,year,prev)
+t<-pivot_wider(prev_rob, id_cols = Classification, names_from = year, names_sort=TRUE, values_from = c("prev"))
+kable(t, caption="Prevalence of each Robson group") %>%
+  kable_styling(font_size = 14)
+
+
+per_ses<-read.csv2("indicators_per_ses.csv")
+per_ses<-per_ses[per_ses$year>=2015,]
+per_ses$sb_24<-as.numeric(per_ses$sb_24)
+per_ses<-mutate(per_ses, rate_sb=sb_24/(nlive_24+sb_24)*1000)
+per_ses$SES<-as.factor(per_ses$SES)
+
+int_ses<-read.csv2("SES_intitule.csv")
+b<-merge(per_ses,int_ses, by="SES_ED") 
+
+ggplot(b, aes(year, rate_sb, color=maternal_education, group=maternal_education )) + 
+  geom_point()+ geom_line() +
+  xlab("year") +
+  ylab("stillbirth rate 24SA (per 1000 births)")+ 
+  ggtitle("Stillbirth rate ")+
+  theme_bw()
+
+b<-mutate(b, rate_prema=prema_singletons/(n_live_singleton_all)*100)
+ggplot(b, aes(year, rate_prema, color=maternal_education, group=maternal_education)) + 
+  geom_point()+ geom_line() +
+  xlab("year") +
+  ylab("Preterm singleton birth rate (%)")+ 
+  ggtitle("Preterm singleton birth rate (<37weeks) ")+
+  theme_bw()
+
+b$extreme_prema_singletons<-as.numeric(b$extreme_prema_singletons)
+b<-mutate(b, rate_very_prema=extreme_prema_singletons/(n_live_singleton_all)*100)
+ggplot(b, aes(year, rate_very_prema, color=maternal_education, group=maternal_education )) + 
+  geom_point()+ geom_line() +
+  xlab("year") +
+  ylab("Extreme preterm singleton birth rate (%)")+ 
+  ggtitle("Extreme preterm singleton birth rate (<32weeks) ")+
+  theme_bw()
+
+b<-mutate(b, rate_cs=CS/(n_mod_delivery)*100)
+ggplot(b, aes(year, rate_cs, color=maternal_education, group=maternal_education)) + 
+  geom_point()+ geom_line() +
+  xlab("year") +
+  ylab("Caesarean delivery rate (%)")+ 
+  ggtitle("Caesarean delivery rate ")+
+  theme_bw()
+
+
+
+
+```
+
