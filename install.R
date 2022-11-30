@@ -7,6 +7,10 @@ install.packages('plotly')
 install.packages('readr')
 install.packages('dplyr')
 install.packages('lubridate')
+
+install.packages('logisticRR')
+install.packages('epiR')
+
 require(devtools)
 install_version("rmarkdown", version = "2.13", repos = "https://cran.r-project.org")
 install_version("tidyverse", version = "1.3.1", repos = "https://cran.r-project.org")
